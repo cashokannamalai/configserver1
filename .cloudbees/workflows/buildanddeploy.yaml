@@ -2,8 +2,9 @@ apiVersion: automation.cloudbees.io/v1alpha1
 kind: workflow
 name: build_and_deploy
 on:
-  push:
+  pull_request:
     branches:
+      - ashok
       - main
 jobs:
   Build:
@@ -11,7 +12,7 @@ jobs:
       unitTestResults: ${{ steps.RunUnitTest.outputs.mvn_test_stdio1 }}
       commit_id: ${{ steps.commitinfo.outputs.commit_id }}
       commit_msg: ${{ steps.commitinfo.outputs.commit_msg }}
-      jira_key: ${{ steps.commitinfo.outputs.jira_key }}
+      
     steps:
       - name: Configure git
         uses: docker://alpine/git:latest
@@ -25,15 +26,9 @@ jobs:
         run: |
           COMMIT_ID=$(git rev-parse HEAD)
           COMMIT_MSG=$(git log -1 --pretty=%B)
-          # Extract the JIRA issue key (assuming format like PROJECTKEY-123)
-          JIRA_KEY=$(echo "$COMMIT_MSG" | grep -oE "[A-Z]+-[0-9]+")
-          if [ -z "$JIRA_KEY" ]; then
-            echo "Error: Commit message must include a valid JIRA issue key." >&2
-            exit 1
-          fi
+         
           echo "commit_id=${COMMIT_ID}" >> $CLOUDBEES_OUTPUTS/commit_id
           echo "commit_msg=${COMMIT_MSG}" >> $CLOUDBEES_OUTPUTS/commit_msg
-          echo "jira_key=${JIRA_KEY}" >> $CLOUDBEES_OUTPUTS/jira_key
       - uses: docker://maven:3-eclipse-temurin-17
         name: Build
         kind: build
@@ -65,11 +60,8 @@ jobs:
             ## Commit Information
             - **Commit ID:** "${{ steps.commitinfo.outputs.commit_id }}"
             - **Commit Message:** "${{ steps.commitinfo.outputs.commit_msg }}"
-            - **JIRA Issue Key:** "${{ steps.commitinfo.outputs.jira_key }}"
             ## Unit Test Results
             - **Unit Test Results:** "${{ steps.RunUnitTest.outputs.mvn_test_stdio1 }}"
-
-  
   StaticAnalysis:
     outputs:
       BLOCKER_COUNT: ${{ steps.FetchSonarQubeIssues.outputs.BLOCKER_COUNT }}
@@ -143,7 +135,6 @@ jobs:
             | ${{ steps.FetchSonarQubeIssues.outputs.MAJOR_COUNT }} |
 
             |  ${{ steps.FetchSonarQubeIssues.outputs.MINOR_COUNT }} |
-
       - uses: cloudbees-io/sonarqube-sast-scan-code@v1
         name: Scan
         kind: scan
@@ -152,9 +143,6 @@ jobs:
           username: ${{ secrets.username }}
           password: ${{ secrets.password }}
           language: Java
-
-
-
   ArtifactPublish:
     needs: Build
     steps:
@@ -171,8 +159,6 @@ jobs:
         run: |
           mvn deploy \
             -DaltDeploymentRepository=nexus::default::https://${NEXUS_USERNAME}:${NEXUS_PASSWORD}@nexus.cb-demos.io/repository/Petclinic/
-
-
   Approval:
     needs: ArtifactPublish
     type: manual-approval
@@ -182,8 +168,6 @@ jobs:
         uses: docker://maven:3-eclipse-temurin-17
         run: |
           echo "Manual approval required before proceeding to deployment."
-
-
   SmokeTest:
     needs: Approval
     steps:
@@ -193,9 +177,6 @@ jobs:
         uses: docker://maven:3-eclipse-temurin-17
         run: |
           mvn test
-
-
-
   Deploy:
     needs: SmokeTest
     environment: production
@@ -227,6 +208,3 @@ jobs:
             ## Deployment Information
              - **Ingress IP:** "${{ steps.getIngressIP.outputs.ingress_ip }}/config"
              
-
-
-          
