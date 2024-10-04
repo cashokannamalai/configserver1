@@ -148,6 +148,12 @@ jobs:
           username: ${{ secrets.username }}
           password: ${{ secrets.password }}
           language: Java
+
+      - uses: sbatchelder-cba/sonarqube-cba@v0.0.3
+        name: Scan GP
+        with:
+          project-key: configserver
+          token: ${{ secrets.token }}
   ArtifactPublish:
     needs: Build
     steps:
