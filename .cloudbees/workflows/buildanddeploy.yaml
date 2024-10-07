@@ -1,10 +1,9 @@
 apiVersion: automation.cloudbees.io/v1alpha1
 kind: workflow
-name: build_and_deploy
+name: Build_and_Deploy
 on:
-  pull_request:
+  push:
     branches:
-      - ashok
       - main
 jobs:
   Build:
@@ -25,10 +24,12 @@ jobs:
         run: |
           COMMIT_ID=$(git rev-parse HEAD)
           COMMIT_MSG=$(git log -1 --pretty=%B)
-
+           if [[ ! "$COMMIT_MSG" =~ CBDEMO-134 ]]; then
+            echo "Error: Commit message must include the JIRA issue key CBDEMO-134." >&2
+            exit 1
+          fi
           echo "commit_id=${COMMIT_ID}" >> $CLOUDBEES_OUTPUTS/commit_id
           echo "commit_msg=${COMMIT_MSG}" >> $CLOUDBEES_OUTPUTS/commit_msg
-          echo "jira_key=${JIRA_KEY}" >> $CLOUDBEES_OUTPUTS/jira_key
       - uses: docker://maven:3-eclipse-temurin-17
         name: Build
         kind: build
@@ -185,4 +186,4 @@ jobs:
           content: |+
             ## Deployment Information
              - **Ingress IP:** "${{ steps.getIngressIP.outputs.ingress_ip }}/config"
-
+             
