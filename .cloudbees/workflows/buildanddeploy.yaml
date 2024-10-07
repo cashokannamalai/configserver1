@@ -4,6 +4,7 @@ name: build_and_deploy
 on:
   pull_request:
     branches:
+      - ashok
       - main
 jobs:
   Build:
@@ -11,7 +12,7 @@ jobs:
       unitTestResults: ${{ steps.RunUnitTest.outputs.mvn_test_stdio1 }}
       commit_id: ${{ steps.commitinfo.outputs.commit_id }}
       commit_msg: ${{ steps.commitinfo.outputs.commit_msg }}
-      
+      jira_key: ${{ steps.commitinfo.outputs.jira_key }}
     steps:
       - name: Configure git
         uses: docker://alpine/git:latest
@@ -25,9 +26,16 @@ jobs:
         run: |
           COMMIT_ID=$(git rev-parse HEAD)
           COMMIT_MSG=$(git log -1 --pretty=%B)
-         
+          # Extract the JIRA issue key (assuming format like PROJECTKEY-123)
+          JIRA_KEY=$(echo "$COMMIT_MSG" | grep -oE "[A-Z]+-[0-9]+")
+          if [ -z "$JIRA_KEY" ]; then
+            echo "Error: Commit message must include a valid JIRA issue key." >&2
+            exit 1
+          fi
+
           echo "commit_id=${COMMIT_ID}" >> $CLOUDBEES_OUTPUTS/commit_id
           echo "commit_msg=${COMMIT_MSG}" >> $CLOUDBEES_OUTPUTS/commit_msg
+          echo "jira_key=${JIRA_KEY}" >> $CLOUDBEES_OUTPUTS/jira_key
       - uses: docker://maven:3-eclipse-temurin-17
         name: Build
         kind: build
@@ -61,6 +69,7 @@ jobs:
             - **Commit Message:** "${{ steps.commitinfo.outputs.commit_msg }}"
             ## Unit Test Results
             - **Unit Test Results:** "${{ steps.RunUnitTest.outputs.mvn_test_stdio1 }}"
+            - **JIRA Issue Key:** "${{ steps.commitinfo.outputs.jira_key }}"
   StaticAnalysis:
     outputs:
       BLOCKER_COUNT: ${{ steps.FetchSonarQubeIssues.outputs.BLOCKER_COUNT }}
@@ -87,27 +96,13 @@ jobs:
         with:
           test-type: JUnit
           folder-name: /cloudbees/workspace/target/surefire-reports/*.xml
-      - uses: cloudbees-io/snyk-sast-scan-code@v1
-        name: fdf
-        kind: scan
-        with:
-          orgname: ashok.alogicfocus
-          token: 79781dde-8b3d-45c6-9561-a2ebc1e9e18c
-          language: LANGUAGE_JAVA
-      - name: SonarQube Scan
-        uses: docker://maven:3-eclipse-temurin-17
-        run: |
-          mvn sonar:sonar \
-          -Dsonar.projectKey=spring-petclinic-config-server \
-          -Dsonar.host.url=${{ secrets.SONARQUBE_URL }} \
-          -Dsonar.login=${{ secrets.token }}
       - name: Fetch SonarQube Issues
         id: FetchSonarQubeIssues
         uses: docker://alpine/git:latest
         run: |
           apk add --no-cache curl jq
           curl -u ${{ secrets.username }}:${{ secrets.password }} \
-          "https://sonarqube.cb-demos.io/api/issues/search?componentKeys=spring-petclinic-config-server&severities=BLOCKER,CRITICAL,MAJOR,MINOR" \
+          "https://sonarqube.cb-demos.io/api/issues/search?componentKeys=spring-petclinic-config-server&severities=BLOCKER,CRITICAL,MAJOR" \
           -o sonar-issues.json
           BLOCKER_COUNT=$(jq '[.issues[] | select(.severity=="BLOCKER")] | length' sonar-issues.json)
           CRITICAL_COUNT=$(jq '[.issues[] | select(.severity=="CRITICAL")] | length' sonar-issues.json)
@@ -134,14 +129,6 @@ jobs:
             | ${{ steps.FetchSonarQubeIssues.outputs.MAJOR_COUNT }} |
 
             |  ${{ steps.FetchSonarQubeIssues.outputs.MINOR_COUNT }} |
-      - uses: cloudbees-io/sonarqube-sast-scan-code@v1
-        name: Scan
-        kind: scan
-        with:
-          server-url: https://sonarqube.cb-demos.io
-          username: ${{ secrets.username }}
-          password: ${{ secrets.password }}
-          language: Java
   ArtifactPublish:
     needs: Build
     steps:
@@ -206,6 +193,4 @@ jobs:
           content: |+
             ## Deployment Information
              - **Ingress IP:** "${{ steps.getIngressIP.outputs.ingress_ip }}/config"
-             
-
 
