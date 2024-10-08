@@ -7,9 +7,7 @@ on:
       - ashok
       - main
 jobs:
-  
   Build:
-   
     outputs:
         unitTestResults: ${{ steps.RunUnitTest.outputs.mvn_test_stdio1 }}
         commit_id: ${{ steps.commitinfo.outputs.commit_id }}
