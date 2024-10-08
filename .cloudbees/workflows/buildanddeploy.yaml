@@ -4,8 +4,8 @@ name: build_and_deploy
 on:
   pull_request:
     branches:
-     - main
-
+      - ashok
+      - main
 jobs:
   Build:
     outputs:
@@ -203,4 +203,3 @@ jobs:
         kind: build
         run: mvn clean package
         shell: sh
-
