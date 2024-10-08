@@ -5,6 +5,7 @@ on:
  pull_request:
     branches:
       - ashok
+      - main
 jobs:
   Build:
     outputs:
@@ -186,4 +187,5 @@ jobs:
              - **Ingress IP:** "${{ steps.getIngressIP.outputs.ingress_ip }}/config"
 
              - **Ingress IP:** "${{ steps.getIngressIP.outputs.ingress_ip }}/config"
+
 
