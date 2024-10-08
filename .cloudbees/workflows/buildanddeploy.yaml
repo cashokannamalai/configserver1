@@ -15,7 +15,7 @@ jobs:
         id: check_mergeable
         uses: docker://alpine/git:latest
         run: |
-          MERGEABLE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          MERGEABLE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_SECRET }}" \
             https://api.github.com/repos/cashokannamalai/configserver1/pulls/${{ github.event.pull_request.number }} | jq .mergeable)
           if [ "$MERGEABLE" = "false" ]; then
             echo "Error: Pull request is not mergable. Please resolve conflicts."
