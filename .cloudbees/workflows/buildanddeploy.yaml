@@ -6,6 +6,10 @@ on:
     branches:
       - ashok
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 jobs:
   Build:
     outputs:
