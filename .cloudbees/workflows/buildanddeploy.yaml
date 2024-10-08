@@ -4,7 +4,7 @@ name: build_and_deploy
 on:
  pull_request:
     branches:
-      - ashok
+
       - main
 jobs:
   Build:
@@ -187,4 +187,5 @@ jobs:
              - **Ingress IP:** "${{ steps.getIngressIP.outputs.ingress_ip }}/config"
 
              - **Ingress IP:** "${{ steps.getIngressIP.outputs.ingress_ip }}/config"
+
 
