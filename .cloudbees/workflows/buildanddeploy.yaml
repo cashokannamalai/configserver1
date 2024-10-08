@@ -193,3 +193,12 @@ jobs:
             ## Deployment Information
              - **Ingress IP:** "${{ steps.getIngressIP.outputs.ingress_ip }}/config"
 
+  Build12:
+    steps:
+      - name: checkout
+        uses: cloudbees-io/checkout@v1
+
+      - name: Build 
+        uses: docker://maven:3-eclipse-temurin-17
+        run: |
+          mvn clean install
